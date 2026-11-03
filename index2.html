@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TruPallete 12-Season Multi-Brand Engine</title>
+  <!-- Chroma.js for CIELAB Delta E calculations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.4.2/chroma.min.js"></script>
+  <style>
+    :root {
+      --bg-cream: #fbf9f6;
+      --card-bg: #ffffff;
+      --text-dark: #2b2622;
+      --accent-earth: #4a3e31;
+      --border-soft: #e7e2dc;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-cream);
+      color: var(--text-dark);
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      max-width: 820px;
+      width: 100%;
+      background: var(--card-bg);
+      padding: 36px;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+      box-sizing: border-box;
+    }
+    h1 { margin-top: 0; font-size: 26px; color: var(--accent-earth); }
+    .subtitle { color: #6b635b; margin-bottom: 28px; line-height: 1.5; }
+    
+    .question-block {
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+    .question-title {
+      font-weight: 600;
+      font-size: 15px;
+      margin-bottom: 14px;
+    }
+
+    .anchor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .anchor-card {
+      border: 2px solid var(--border-soft);
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.2s ease;
+      background: #faf9f7;
+      user-select: none;
+    }
+    .anchor-card:hover { border-color: #b5a99d; }
+    .anchor-card input { display: none; }
+    .anchor-card.selected {
+      border-color: var(--accent-earth);
+      background: #f4efe9;
+    }
+    .swatch-preview {
+      width: 100%;
+      height: 48px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+    .anchor-label {
+      font-size: 13px;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    button.submit-btn {
+      background: var(--accent-earth);
+      color: #fff;
+      border: none;
+      padding: 14px 24px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+      width: 100%;
+      margin-top: 8px;
+    }
+    button.submit-btn:hover { background: #352c22; }
+
+    #results {
+      margin-top: 36px;
+      display: none;
+    }
+    .nudge-container {
+      background: #f4efe9;
+      padding: 16px;
+      border-radius: 8px;
+      margin: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .nudge-buttons {
+      display: flex;
+      gap: 8px;
+    }
+    .nudge-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #b5a99d;
+      background: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-earth);
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .nudge-btn.active {
+      background: var(--accent-earth);
+      color: #fff;
+      border-color: var(--accent-earth);
+    }
+
+    /* Brand Dropdown Filter Controls */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0 24px 0;
+      align-items: center;
+      background: #faf8f5;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-soft);
+    }
+    .brand-select {
+      background: #ffffff;
+      border: 1.5px solid #c8beaf;
+      color: var(--text-dark);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .brand-select:focus {
+      border-color: var(--accent-earth);
+    }
+
+    .swatches-wrapper {
+      display: flex;
+      gap: 8px;
+      margin: 16px 0 28px 0;
+      flex-wrap: wrap;
+    }
+    .swatch-circle {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 18px;
+    }
+    .product-card {
+      border: 1px solid var(--border-soft);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .product-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+    .product-card-top-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+    }
+    .product-card img {
+      width: 100%;
+      height: 250px;
+      display: block;
+      background: #f7f5f2;
+    }
+    .product-info {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex-grow: 1;
+    }
+    .brand-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      align-self: flex-start;
+    }
+    .brand-badge.jawda {
+      background-color: #f3ece4;
+      color: #5c3a21;
+    }
+    .brand-badge.vela {
+      background-color: #e9eff5;
+      color: #1e3a5f;
+    }
+    .product-cat {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #888;
+      letter-spacing: 0.5px;
+    }
+    .product-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 4px 0 10px 0;
+      color: var(--text-dark);
+      line-height: 1.3;
+    }
+    .swatch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .mini-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,0.2);
+      display: inline-block;
+    }
+    .swatch-hex {
+      font-size: 12px;
+      color: #666;
+      font-family: monospace;
+    }
+    .shop-link {
+      display: block;
+      text-align: center;
+      background: #f1eeeb;
+      color: var(--text-dark);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s ease;
+    }
+    .shop-link:hover { background: #e3ded8; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h1>TruPallete 12-Season Multi-Brand Engine</h1>
+    <p class="subtitle">An objective, comparative diagnostic connecting personal color analysis directly to specific items across <strong>Jawda Modest Essentials</strong> and <strong>Vela Scarves</strong>.</p>
+
+    <form id="diagnostic-form">
+      <!-- Question 1: Surface Baseline -->
+      <div class="question-block">
+        <div class="question-title">1. Complexion Baseline: How would you describe your untanned skin tone along your neck or jawline?</div>
+        <div class="anchor-grid">
+          <label class="anchor-card">
+            <input type="radio" name="overtone" value="fair" required />
+            <div class="swatch-preview" style="background-color: #fcebe1;"></div>
+            <div class="anchor-label"><strong>Fair to Light</strong><br><small style="color:#777;">Porcelain, ivory, beige</small></div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="overtone" value="medium" />
+            <div class="swatch-preview" style="background-color: #dfba98;"></div>
+            <div class="anchor-label"><strong>Medium / Neutral</strong><br><small style="color:#777;">Honey, warm beige, tan</small></div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="overtone" value="olive" />
+            <div class="swatch-preview" style="background-color: #cbb489;"></div>
+            <div class="anchor-label"><strong>Olive Tonal Balance</strong><br><small style="color:#777;">Golden-green or grey-green tint; tans fast</small></div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="overtone" value="deep" />
+            <div class="swatch-preview" style="background-color: #5c3826;"></div>
+            <div class="anchor-label"><strong>Deep to Rich</strong><br><small style="color:#777;">Espresso, rich chestnut, bronze</small></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 2: Jet Black Fabric Drape -->
+      <div class="question-block">
+        <div class="question-title">2. Black Fabric Drape: When you wear solid jet black right under your face, what happens?</div>
+        <div class="anchor-grid">
+          <label class="anchor-card">
+            <input type="radio" name="blackDrape" value="warm" required />
+            <div class="swatch-preview" style="background-color: #3b2a22;"></div>
+            <div class="anchor-label">
+              <strong>It feels harsh or heavy</strong><br>
+              <small style="color:#777;">Casts dark shadows under eyes/chin; warm espresso, camel, or olive is softer</small>
+            </div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="blackDrape" value="cool" />
+            <div class="swatch-preview" style="background-color: #111111;"></div>
+            <div class="anchor-label">
+              <strong>It feels crisp & natural</strong><br>
+              <small style="color:#777;">Frames my features cleanly without washing me out or feeling overpowered</small>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 3: Metal Reflection Anchor -->
+      <div class="question-block">
+        <div class="question-title">3. Jewelry Finish: Which metal finish blends most seamlessly against your collarbone or wrist?</div>
+        <div class="anchor-grid">
+          <label class="anchor-card">
+            <input type="radio" name="metalPref" value="gold" required />
+            <div class="swatch-preview" style="background: linear-gradient(135deg, #ECC94B, #B7791F);"></div>
+            <div class="anchor-label"><strong>Yellow Gold</strong><br><small style="color:#777;">Melts in naturally; silver looks chilly</small></div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="metalPref" value="silver" />
+            <div class="swatch-preview" style="background: linear-gradient(135deg, #E2E8F0, #A0AEC0);"></div>
+            <div class="anchor-label"><strong>Polished Silver</strong><br><small style="color:#777;">Looks clean & bright; gold looks brassy</small></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Question 4: Natural Contrast -->
+      <div class="question-block">
+        <div class="question-title">4. Natural Contrast: What best captures your natural hair roots and eye iris definition?</div>
+        <div class="anchor-grid">
+          <label class="anchor-card">
+            <input type="radio" name="contrast" value="deep" required />
+            <div class="swatch-preview" style="background: linear-gradient(90deg, #111111, #3D2314);"></div>
+            <div class="anchor-label"><strong>High Contrast / Deep</strong><br><small style="color:#777;">Dark espresso/black hair; clear eye contrast</small></div>
+          </label>
+          <label class="anchor-card">
+            <input type="radio" name="contrast" value="soft" />
+            <div class="swatch-preview" style="background: linear-gradient(90deg, #8C7D70, #B38B6D);"></div>
+            <div class="anchor-label"><strong>Soft / Muted Contrast</strong><br><small style="color:#777;">Soft brown, hazel, or smoky gentle transition</small></div>
+          </label>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn">Diagnose My Season & Filter Catalog</button>
+    </form>
+
+    <div id="results">
+      <h2 id="palette-name"></h2>
+      <p id="palette-desc" style="color: #666;"></p>
+
+      <!-- Real-Time Calibration Slider -->
+      <div class="nudge-container">
+        <span style="font-size: 13px; font-weight: 600;">Calibrate Tone Balance (Fine-Tune Matches):</span>
+        <div class="nudge-buttons">
+          <button type="button" class="nudge-btn" id="btn-cooler" onclick="calibratePalette('cooler')">&#9668; Shift Cooler / Slate</button>
+          <button type="button" class="nudge-btn active" id="btn-reset" onclick="calibratePalette('reset')">Current Match</button>
+          <button type="button" class="nudge-btn" id="btn-warmer" onclick="calibratePalette('warmer')">Shift Warmer / Golden &#9658;</button>
+        </div>
+      </div>
+
+      <div class="swatches-wrapper" id="palette-swatches"></div>
+
+      <!-- Brand Filter Dropdown Menu -->
+      <div class="filter-bar">
+        <label for="brandDropdown" style="font-size: 13px; font-weight: 600; color: #555;">Browse Brand:</label>
+        <select id="brandDropdown" class="brand-select" onchange="onBrandDropdownChange(this.value)">
+          <option value="all">All Brands (Jawda & Vela)</option>
+          <option value="Jawda">Jawda Modest Essentials</option>
+          <option value="Vela">Vela Scarves</option>
+        </select>
+      </div>
+
+      <h3>Curated Matches:</h3>
+      <div class="product-grid" id="product-grid"></div>
+    </div>
+  </div>
+
+  <script>
+    // Radio Card UX
+    document.querySelectorAll('.anchor-card').forEach(card => {
+      card.addEventListener('click', function() {
+        const input = this.querySelector('input');
+        input.checked = true;
+        const name = input.name;
+        document.querySelectorAll(`input[name="${name}"]`).forEach(inp => {
+          inp.closest('.anchor-card').classList.remove('selected');
+        });
+        this.classList.add('selected');
+      });
+    });
+
+    const SEASONS = {
+      "warm-autumn": {
+        name: "Warm Autumn",
+        desc: "Rich, golden, and grounded earth tones: terracotta, cinnamon rust, warm olive, and camel.",
+        swatches: ["#8A3324", "#C87D55", "#4A5239", "#B38B6D", "#7C6354"]
+      },
+      "deep-autumn": {
+        name: "Deep Autumn",
+        desc: "Rich, deep warm tones: mocha brown, truffle chocolate, deep olive, and burgundy.",
+        swatches: ["#4A2311", "#5C2018", "#384024", "#5C3A21", "#2B1D14"]
+      },
+      "soft-autumn": {
+        name: "Soft Autumn",
+        desc: "Muted, neutral-warm shades: sage mist, warm travertine, gray tan, and soft stone.",
+        swatches: ["#A38B78", "#9E8E76", "#7E826F", "#B8866B", "#C2A38E"]
+      },
+      "warm-spring": {
+        name: "Warm Spring",
+        desc: "Vibrant, golden-clear tones: honey amber, coral sorbet, bright peach, and golden beige.",
+        swatches: ["#FF9E79", "#F4A460", "#E0AC69", "#D4A373", "#F7EEDB"]
+      },
+      "light-spring": {
+        name: "Light Spring",
+        desc: "Delicate, luminous warm tones: swan white, buttercream, soft apricot, and peach cream.",
+        swatches: ["#F5DEB3", "#E8C8A3", "#F2C09C", "#D8B289", "#F7EEDB"]
+      },
+      "cool-winter": {
+        name: "Cool Winter",
+        desc: "High-contrast, bold, icy tones: jet black, pure white, charcoal grey, and navy.",
+        swatches: ["#111111", "#1C2833", "#2E4053", "#0F2537", "#4A5568"]
+      },
+      "deep-winter": {
+        name: "Deep Winter",
+        desc: "Intense, deep cool tones: black, midnight navy, deep plum, and velvet sapphire.",
+        swatches: ["#0C141F", "#2A131E", "#1F2937", "#152238", "#111111"]
+      },
+      "cool-summer": {
+        name: "Cool Summer",
+        desc: "Soft, dusty cool shades: powder rose, mist blue, sterling silver, and sky blue.",
+        swatches: ["#B8A99A", "#9B8C86", "#8F9CA3", "#C5A0A4", "#7B8788"]
+      },
+      "soft-summer": {
+        name: "Soft Summer",
+        desc: "Muted neutral-cool tones: lilac, ashwood, soft mauve, and dusty sage.",
+        swatches: ["#8C827A", "#7B8788", "#9A8F97", "#7F8C8D", "#A29598"]
+      }
+    };
+
+    // Generates an elegant self-contained textile render in the exact swatch color
+    function generateFabricSVG(hexColor, brandText, itemType) {
+      const cleanHex = hexColor.replace('#', '');
+      const isHijab = itemType.toLowerCase().includes('hijab');
+      
+      const drapedPaths = isHijab
+        ? `<path d="M70,50 Q150,90 230,50 Q210,210 150,230 Q90,210 70,50 Z" fill="%23${cleanHex}" opacity="0.9" />
+           <path d="M100,60 Q150,110 200,60 Q180,180 150,200 Q120,180 100,60 Z" fill="%23000000" opacity="0.12" />`
+        : `<path d="M50,40 L250,40 L220,240 L80,240 Z" fill="%23${cleanHex}" opacity="0.9" />
+           <path d="M150,40 L150,240" stroke="%23000000" stroke-width="2" opacity="0.15" />
+           <path d="M50,40 Q150,90 250,40" stroke="%23ffffff" stroke-width="3" opacity="0.25" fill="none" />`;
+
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 280" width="100%" height="100%">
+        <defs>
+          <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="%23faf8f5"/>
+            <stop offset="100%" stop-color="%23ede8e1"/>
+          </linearGradient>
+          <filter id="softShadow" x="-10%" y="-10%" width="130%" height="130%">
+            <feDropShadow dx="0" dy="6" stdDeviation="8" flood-opacity="0.15"/>
+          </filter>
+        </defs>
+        <rect width="300" height="280" fill="url(%23bgGrad)" />
+        <g filter="url(%23softShadow)">
+          ${drapedPaths}
+        </g>
+        <circle cx="150" cy="140" r="28" fill="%23ffffff" opacity="0.25" />
+        <rect x="75" y="235" width="150" height="24" rx="12" fill="%23ffffff" opacity="0.9" />
+        <text x="150" y="251" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="11" font-weight="700" fill="%232b2622" text-anchor="middle" letter-spacing="1">${brandText.toUpperCase()} ESSENTIAL</text>
+      </svg>`;
+
+      return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
+    }
+
+    // 14 Core Catalog items directly linked to live stores
+    let PRODUCTS = [
+      // JAWDA MODEST ESSENTIALS
+      {
+        id: "jawda-1",
+        brand: "Jawda",
+        name: "Ecru White Layered Two-Piece Abaya",
+        category: "Abayas",
+        hex: "#F5DEB3",
+        link: "https://jawda.co.uk/products/ecru-white-cotton-layered-two-piece-abaya"
+      },
+      {
+        id: "jawda-2",
+        brand: "Jawda",
+        name: "Olive Cotton Collar Top",
+        category: "Tops",
+        hex: "#4A5239",
+        link: "https://jawda.co.uk/products/olive-cotton-collar-top"
+      },
+      {
+        id: "jawda-3",
+        brand: "Jawda",
+        name: "Mocha Brown Lantern Sleeve Top",
+        category: "Tops",
+        hex: "#5C3A21",
+        link: "https://jawda.co.uk/products/mocha-brown-cotton-lantern-sleeve-top"
+      },
+      {
+        id: "jawda-4",
+        brand: "Jawda",
+        name: "Burgundy Vegan Leather Button Jacket",
+        category: "Jackets",
+        hex: "#5C2018",
+        link: "https://jawda.co.uk/products/burgundy-vegan-leather-covered-button-jacket"
+      },
+      {
+        id: "jawda-5",
+        brand: "Jawda",
+        name: "Charcoal Grey Cotton Collar Top",
+        category: "Tops",
+        hex: "#1C2833",
+        link: "https://jawda.co.uk/products/charcoal-grey-cotton-collar-top"
+      },
+      {
+        id: "jawda-6",
+        brand: "Jawda",
+        name: "Black Linen Cotton Slit Dress",
+        category: "Dresses",
+        hex: "#111111",
+        link: "https://jawda.co.uk/products/black-linen-cotton-ruched-slit-dress"
+      },
+      {
+        id: "jawda-7",
+        brand: "Jawda",
+        name: "Mist Blue Etched Crepe Lace Top",
+        category: "Tops",
+        hex: "#7B8788",
+        link: "https://jawda.co.uk/products/mist-blue-etched-crepe-lace-top"
+      },
+      {
+        id: "jawda-8",
+        brand: "Jawda",
+        name: "Stone Beige Elasticated Skirt",
+        category: "Skirts",
+        hex: "#C2A38E",
+        link: "https://jawda.co.uk/products/stone-beige-linen-cotton-elasticated-skirt"
+      },
+
+      // VELA SCARVES
+      {
+        id: "vela-1",
+        brand: "Vela",
+        name: "Cinnamon Modal Hijab",
+        category: "Hijabs",
+        hex: "#8A3324",
+        link: "https://velascarves.com/products/cinnamon-solid"
+      },
+      {
+        id: "vela-2",
+        brand: "Vela",
+        name: "Honey Amber Modal Hijab",
+        category: "Hijabs",
+        hex: "#D4A373",
+        link: "https://velascarves.com/collections/modal-hijab"
+      },
+      {
+        id: "vela-3",
+        brand: "Vela",
+        name: "Sage Mist Modal Hijab",
+        category: "Hijabs",
+        hex: "#7E826F",
+        link: "https://velascarves.com/collections/modal-hijab"
+      },
+      {
+        id: "vela-4",
+        brand: "Vela",
+        name: "Truffle Mushroom Modal",
+        category: "Hijabs",
+        hex: "#4A2311",
+        link: "https://velascarves.com/products/truffle-mushroom-1"
+      },
+      {
+        id: "vela-5",
+        brand: "Vela",
+        name: "Sweet Rose Modal Hijab",
+        category: "Hijabs",
+        hex: "#C5A0A4",
+        link: "https://velascarves.com/collections/modal-hijab"
+      },
+      {
+        id: "vela-6",
+        brand: "Vela",
+        name: "Standard Black Modal Hijab",
+        category: "Hijabs",
+        hex: "#111111",
+        link: "https://velascarves.com/products/standard-black-solid"
+      }
+    ];
+
+    let currentBaseSeason = "warm-autumn";
+    let activeSeason = "warm-autumn";
+    let selectedBrandFilter = "all";
+
+    function onBrandDropdownChange(brandValue) {
+      selectedBrandFilter = brandValue;
+      renderActiveSeason();
+    }
+
+    function calculatePreciseSeason(overtone, blackPref, metalPref, contrast) {
+      if (overtone === "olive") {
+        if (blackPref === "warm") {
+          return contrast === "deep" ? "deep-autumn" : "warm-autumn";
+        } else {
+          return contrast === "deep" ? "deep-winter" : "soft-summer";
+        }
+      }
+
+      if (overtone === "deep") {
+        if (blackPref === "cool" || metalPref === "silver") {
+          return "deep-winter";
+        }
+        return "deep-autumn";
+      }
+
+      let warmScore = 0;
+      let coolScore = 0;
+
+      if (blackPref === "warm") warmScore += 2;
+      if (blackPref === "cool") coolScore += 2;
+
+      if (metalPref === "gold") warmScore += 1;
+      if (metalPref === "silver") coolScore += 1;
+
+      const isDeep = (contrast === "deep");
+
+      if (warmScore > coolScore) {
+        return isDeep ? "deep-autumn" : "warm-spring";
+      } else if (coolScore > warmScore) {
+        return isDeep ? "cool-winter" : "cool-summer";
+      } else {
+        return isDeep ? "deep-autumn" : "soft-summer";
+      }
+    }
+
+    document.getElementById("diagnostic-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+
+      const overtoneEl = document.querySelector('input[name="overtone"]:checked');
+      const blackEl = document.querySelector('input[name="blackDrape"]:checked');
+      const metalEl = document.querySelector('input[name="metalPref"]:checked');
+      const contrastEl = document.querySelector('input[name="contrast"]:checked');
+
+      if (!overtoneEl || !blackEl || !metalEl || !contrastEl) {
+        alert("Please answer all 4 diagnostic comparisons.");
+        return;
+      }
+
+      currentBaseSeason = calculatePreciseSeason(
+        overtoneEl.value,
+        blackEl.value,
+        metalEl.value,
+        contrastEl.value
+      );
+
+      activeSeason = currentBaseSeason;
+      setActiveButton("btn-reset");
+      renderActiveSeason();
+
+      const results = document.getElementById("results");
+      results.style.display = "block";
+      results.scrollIntoView({ behavior: "smooth" });
+    });
+
+    function setActiveButton(buttonId) {
+      document.querySelectorAll('.nudge-btn').forEach(btn => btn.classList.remove('active'));
+      const target = document.getElementById(buttonId);
+      if (target) target.classList.add('active');
+    }
+
+    function calibratePalette(direction) {
+      if (direction === 'cooler') {
+        setActiveButton('btn-cooler');
+        if (currentBaseSeason.includes('autumn')) activeSeason = 'soft-summer';
+        else if (currentBaseSeason.includes('spring')) activeSeason = 'cool-summer';
+        else activeSeason = 'cool-winter';
+      } else if (direction === 'warmer') {
+        setActiveButton('btn-warmer');
+        if (currentBaseSeason.includes('summer')) activeSeason = 'soft-autumn';
+        else if (currentBaseSeason.includes('winter')) activeSeason = 'deep-autumn';
+        else activeSeason = 'warm-spring';
+      } else {
+        setActiveButton('btn-reset');
+        activeSeason = currentBaseSeason;
+      }
+
+      renderActiveSeason();
+    }
+
+    function renderActiveSeason() {
+      const palette = SEASONS[activeSeason] || SEASONS["warm-autumn"];
+
+      document.getElementById("palette-name").textContent = palette.name;
+      document.getElementById("palette-desc").textContent = palette.desc;
+
+      const swatchesContainer = document.getElementById("palette-swatches");
+      swatchesContainer.replaceChildren();
+      palette.swatches.forEach(hex => {
+        const circle = document.createElement("div");
+        circle.className = "swatch-circle";
+        circle.style.backgroundColor = hex;
+        swatchesContainer.appendChild(circle);
+      });
+
+      const matchedProducts = PRODUCTS.filter(prod => {
+        if (selectedBrandFilter !== "all" && prod.brand !== selectedBrandFilter) {
+          return false;
+        }
+        return palette.swatches.some(swatchHex => {
+          try {
+            return chroma.deltaE(prod.hex, swatchHex) <= 9.5;
+          } catch (err) {
+            return false;
+          }
+        });
+      });
+
+      const grid = document.getElementById("product-grid");
+      grid.replaceChildren();
+
+      if (matchedProducts.length === 0) {
+        const emptyMsg = document.createElement("p");
+        emptyMsg.textContent = "No products found for this season with the selected brand filter. Try selecting 'All Brands' or shifting your tone calibration.";
+        emptyMsg.style.color = "#777";
+        grid.appendChild(emptyMsg);
+        return;
+      }
+
+      matchedProducts.forEach(prod => {
+        const card = document.createElement("div");
+        card.className = "product-card";
+
+        const topLink = document.createElement("a");
+        topLink.href = prod.link;
+        topLink.target = "_blank";
+        topLink.rel = "noopener noreferrer";
+        topLink.className = "product-card-top-link";
+
+        const img = document.createElement("img");
+        img.src = generateFabricSVG(prod.hex, prod.brand, prod.category);
+        img.alt = prod.name;
+        topLink.appendChild(img);
+
+        const info = document.createElement("div");
+        info.className = "product-info";
+
+        const headerDiv = document.createElement("div");
+
+        const brandBadge = document.createElement("span");
+        brandBadge.className = `brand-badge ${prod.brand.toLowerCase()}`;
+        brandBadge.textContent = prod.brand;
+
+        const cat = document.createElement("div");
+        cat.className = "product-cat";
+        cat.textContent = prod.category;
+
+        const titleLink = document.createElement("a");
+        titleLink.href = prod.link;
+        titleLink.target = "_blank";
+        titleLink.rel = "noopener noreferrer";
+        titleLink.style.textDecoration = "none";
+        titleLink.style.color = "inherit";
+
+        const title = document.createElement("div");
+        title.className = "product-name";
+        title.textContent = prod.name;
+        titleLink.appendChild(title);
+
+        const swatchRow = document.createElement("div");
+        swatchRow.className = "swatch-row";
+
+        const miniCircle = document.createElement("span");
+        miniCircle.className = "mini-swatch";
+        miniCircle.style.backgroundColor = prod.hex;
+
+        const hexLabel = document.createElement("span");
+        hexLabel.className = "swatch-hex";
+        hexLabel.textContent = prod.hex;
+
+        swatchRow.appendChild(miniCircle);
+        swatchRow.appendChild(hexLabel);
+
+        headerDiv.appendChild(brandBadge);
+        headerDiv.appendChild(cat);
+        headerDiv.appendChild(titleLink);
+        headerDiv.appendChild(swatchRow);
+
+        const link = document.createElement("a");
+        link.href = prod.link;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.className = "shop-link";
+        link.textContent = `Shop on ${prod.brand} \u2192`;
+
+        info.appendChild(headerDiv);
+        info.appendChild(link);
+
+        card.appendChild(topLink);
+        card.appendChild(info);
+        grid.appendChild(card);
+      });
+    }
+  </script>
+</body>
+</html>
